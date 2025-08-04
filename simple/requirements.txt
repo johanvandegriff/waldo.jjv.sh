@@ -1,0 +1,4 @@
+pillow==9.5.0
+brother_ql
+opencv-python
+numpy

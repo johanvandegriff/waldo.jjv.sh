@@ -1,0 +1,785 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="description" content="TODO">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" type="text/css" href="/static/style.css">
+    <title>waldo.jjv.sh</title>
+</head>
+
+<body>
+    <div class="main" id="app">
+        <h1>
+            <span @click="quitEditor">
+                waldo<span class="r">.</span>jjv<span class="r">.</span>sh
+            </span>
+        </h1>
+        <div v-show="state === 'LANDING'">
+            <div class="cart-corner" v-if="cart.length > 0" @click="viewCart">
+                <img style="transform: scale(-1, 1);" src="/static/icons/cart.svg" />
+                <div>[[ cart.length ]]</div>
+            </div>
+
+            <p>create and order stickers that are <span class="b">black</span> and white and <span class="r">red</span>
+                all over!</p>
+            <br />
+            <h2>examples:</h2>
+
+            <div class="images images-3">
+                <div class="sticker" @click="editImage('static/IMG_20250606_171029_edit.jpg', 180, 70, 135)"><img
+                        src="static/IMG_20250606_171029_edit_waldo.jjv.sh_rbw.png" /></div>
+                <div class="sticker" @click="editImage('static/IMG_20250401_105906_crop2.jpg', 70, 70)"><img
+                        src="static/IMG_20250401_105906_crop2_rbw.png" /></div>
+                <div class="sticker" @click="editImage('static/IMG_20250418_133229.jpg', 125, 70)"><img
+                        src="static/IMG_20250418_133229_rbw.png" /></div>
+            </div>
+
+            <br />
+            <h2>make your own:</h2>
+            <div class="images images-3">
+                <div @click="pickFile">
+                    <div>
+                        <img src="/static/icons/pick-file.svg" />
+                    </div>
+                    <div>pick file</div>
+                </div>
+                <div @click="useCamera">
+                    <div>
+                        <img src="/static/icons/camera.svg" />
+                    </div>
+                    <div>use camera</div>
+                </div>
+                <div @click="editImage('static/incredible-original.png', undefined, 70)">
+                    <div>
+                        <img src="static/incredible.png" />
+                    </div>
+                    <div>sample image</div>
+                </div>
+            </div>
+        </div>
+        <div v-show="state === 'EDITOR'">
+            <h2><span class="b">waldo-ify</span> your <span class="r">image</span></h2>
+            <p>
+                the label printer can only do <span class="b">black</span>, white, and <span class="r">red</span>
+                (no shades of gray), so we have to convert your image to only these 3 colors.
+            </p>
+            <div v-if="!usingCamera" class="editor-buttons mt-25">
+                <div>
+                    <div class="small-button" @click="quitEditor">
+                        <img src="/static/icons/x.svg">
+                    </div>
+                    <div class="small-button" @click="pickFile">
+                        <img src="/static/icons/pick-file.svg" />
+                    </div>
+
+                    <div class="small-button" @click="useCamera">
+                        <img src="/static/icons/camera.svg" />
+                    </div>
+                    <div>replace</div>
+                </div>
+                <div class="right">
+                    <div>download</div>
+                    <div class="small-button" @click="downloadOutput">
+                        <img src="/static/icons/download.svg" />
+                    </div>
+                </div>
+            </div>
+            <div v-else class="editor-buttons mt-25">
+                <p>tap anywhere on the video to take a snapshot</p>
+            </div>
+            <div class="images images-editor checkered" @click="takeSnapshot">
+                <div>
+                    <video v-show="false" id="videoEditorIn"></video>
+                    <canvas v-show="!usingCamera" id="canvasEditorInMaskHover"></canvas>
+                    <canvas v-show="!usingCamera" id="canvasEditorInMask" @mousedown="maskDown" @mousemove="maskMove"
+                        @mouseup="maskUp" @mouseleave="maskLeave"></canvas>
+                    <canvas id="canvasEditorIn"></canvas>
+                </div>
+                <!-- <div><img src="static/IMG_20250401_105906_crop2.jpg" /></div> -->
+                <div id="arrow">
+                    <img src="/static/icons/right-arrow.svg" />
+                </div>
+                <div><canvas id="canvasEditorOut"></canvas></div>
+                <!-- <div><img src="static/IMG_20250401_105906_crop2_rbw.png" /></div> -->
+            </div>
+            <!-- <h2>adjust conversion settings</h2> -->
+            <div class="left">
+                <!-- <button @click="processImage()">processImage</button> -->
+                <p v-if="thresholds.length > 0">
+                    saturation threshold:
+                    <input type="number" v-model.number="thresholds[0].saturation" class="numberInput"
+                        @change="processImage()">
+                    <input type="range" v-model.number="thresholds[0].saturation" min="0" max="255"
+                        @change="processImage()">
+                </p>
+                <details>
+                    <summary>
+                        advanced
+                    </summary>
+                    <div v-for="threshold in thresholds" class="threshold-group">
+                        <p>
+                            saturation threshold:
+                            <input type="number" v-model.number="threshold.saturation" class="numberInput"
+                                @change="processImage()">
+                            <input type="range" v-model.number="threshold.saturation" min="0" max="255"
+                                @change="processImage()">
+                        </p>
+                        <p>
+                            value threshold:
+                            <input type="number" v-model.number="threshold.value" class="numberInput"
+                                @change="processImage()">
+                            <input type="range" v-model.number="threshold.value" min="0" max="255"
+                                @change="processImage()">
+                        </p>
+                        <p>
+                            "red" hue min:
+                            <input type="number" v-model.number="threshold.redHueMin" class="numberInput"
+                                @change="processImage()">
+                            <input type="range" v-model.number="threshold.redHueMin" min="0" max="180"
+                                @change="processImage()">
+                        </p>
+                        <p>
+                            "red" hue max:
+                            <input type="number" v-model.number="threshold.redHueMax" class="numberInput"
+                                @change="processImage()">
+                            <input type="range" v-model.number="threshold.redHueMax" min="0" max="180"
+                                @change="processImage()">
+                        </p>
+                        <p>
+                            <label>automatic black/white threshold: <input type="checkbox" v-model="threshold.autoBw"
+                                    @change="processImage()"></label>
+                        </p>
+                        <p :style="{'color': threshold.autoBw ? 'gray' : ''}">
+                            black/white threshold:
+                            <input type="number" v-model.number="threshold.bw" class="numberInput"
+                                @change="processImage()">
+                            <input type="range" v-model.number="threshold.bw" min="-1" max="255"
+                                :disabled="threshold.autoBw" @change="processImage()">
+                        </p>
+                    </div>
+                </details>
+            </div>
+            <br />
+
+            <h2 v-if="!usingCamera">manifest into reality</h2>
+            <div v-if="!usingCamera" class="images images-3">
+                <div @click="editorAddToCart">
+                    <div id="free">
+                        <svg viewBox="0 0 56 18">
+                            <text fill="red" x="8" y="16">free!</text>
+                        </svg>
+                    </div>
+                    <div>
+                        <img style="transform: scale(-1, 1);" src="/static/icons/cart.svg" />
+                    </div>
+                    <div v-if="editingCartIdx === undefined">add to cart</div>
+                    <div v-else>update in cart</div>
+                </div>
+                <div @click="downloadOutput">
+                    <div>
+                        <img src="/static/icons/download.svg" />
+                    </div>
+                    <div>download</div>
+                </div>
+                <div @click="printOutput">
+                    <div>
+                        <img src="static/icons/print.svg" />
+                    </div>
+                    <div>print</div>
+                </div>
+            </div>
+        </div>
+        <div v-show="state === 'SELECT_SIZE'">
+            <h2>select size</h2>
+            <p>
+                the label printer prints 62mm (2.44") wide, and any length. so when printing an image, it will be a
+                different size depending on which way it's rotated. review the 2 options below and select the
+                size(s) you want. you can select both options if you want to order both sizes.
+            </p>
+            <br />
+            <div class="size-preview">
+                <label>
+                    <dimensions :width="widthmm" :height="heightmm">
+                        <canvas id="canvasSelectSize"></canvas>
+                    </dimensions>
+                    <input type="checkbox" v-model="selectSizeChecked"> use this size
+                </label>
+            </div>
+            <br /><br /><br />
+            <div class="size-preview">
+                <label>
+                    <dimensions :width="widthmm" :height="heightmm90">
+                        <canvas id="canvasSelectSize90"></canvas>
+                    </dimensions>
+                    <input type="checkbox" v-model="selectSizeChecked90"> use this size
+                </label>
+            </div>
+            <br /><br /><br />
+            <div class="button" @click="selectSizeAddToCart">
+                <div>
+                    <img style="transform: scale(-1, 1);" src="/static/icons/cart.svg" />
+                </div>
+                continue to cart
+            </div>
+        </div>
+        <div v-show="state === 'CART'">
+            <h2>cart</h2>
+            <div class="cart">
+                <div class="cart-row" v-if="cart.length === 0">cart is empty</div>
+                <div class="images-3 cart-row" v-for="item, i in cart">
+                    <div>
+                        <dimensions :width="item.widthmm" :height="item.heightmm">
+                            <img :src="item.img" />
+                        </dimensions>
+                        <div style="margin-top: auto;">big</div>
+                        <div><input type="number" v-model.number="item.imgQty" class="numberInput"></div>
+                    </div>
+                    <div>
+                        <dimensions :width="item.widthmm" :height="item.heightmm90">
+                            <img :src="item.img90" />
+                        </dimensions>
+                        <div style="margin-top: auto;">small</div>
+                        <div><input type="number" v-model.number="item.img90Qty" class="numberInput"></div>
+                    </div>
+                    <div style="flex-basis: 0;">
+                        <div style="width: 60%;">
+                            <div class="button" @click="editCartItem(i)">
+                                <img src="/static/icons/pencil.svg" />
+                                edit
+                            </div>
+                            <div class="button" @click="removeFromCart(i)">
+                                <img src="/static/icons/trash.svg" />
+                                delete
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div style="display: flex;" @click="addMoreStickers">
+                    <div class="small-button"><img src="/static/icons/plus.svg" /></div>
+                    <div style="padding: 10px;">add more stickers</div>
+                </div>
+                <h2>checkout</h2>
+                <div style="text-align: left">
+                    <br/>
+                    <p>Enter your contact info and I'll get in touch to give you the stickers:</p>
+                    <p>Phone #: <input type="text" v-model="phoneNumberInput" @keydown="phoneNumberValidated = ''"> <button @click="checkPhoneNumber">next</button></p>
+                    <p :style="{'color': phoneNumberValidated === '' ? 'gray' : ''}">Name and (optionally) info about where you generally hang out in the con:</p>
+                    <textarea v-model="address" :disabled="phoneNumberValidated === ''"></textarea><br/>
+                    <p>For now, stickers are free but I'll accept tips</p>
+                    <button @click="order" :disabled="phoneNumberValidated === '' || address === ''">place order</button>
+                    <br/><br/>
+                </div>
+            </div>
+        </div>
+        <div v-show="state === 'ORDERED'">
+            <h2>order placed!<h2>
+            <p>you will receive a text when your order is printed</p>
+            <p>if you have any questions, text 747-CHUNGUS (747-248-6487)</p>
+        </div>
+        <footer>source code: <a target="_blank" href="https://codeberg.org/johanvandegriff/waldo.jjv.sh">codeberg</a> <a
+                target="_blank" href="https://git.sr.ht/~johanvandegriff/waldo.jjv.sh">sourcehut</a> <a target="_blank"
+                href="https://github.com/johanvandegriff/waldo.jjv.sh">github</a></footer>
+    </div>
+    <script async src="/static/opencv-4.11.0.js" onload="opencvReady();" type="text/javascript"></script>
+    <script>
+        let vueMounted = false;
+        window.addEventListener('vueMounted', e => {
+            // console.log('vueMounted', e);
+            vueMounted = true;
+        });
+
+        async function opencvReady() {
+            // console.log(vueMounted);
+            if (vueMounted) {
+                window.cv = await window.cv;
+                window.dispatchEvent(new CustomEvent('opencvReady'));
+            } else {
+                setTimeout(opencvReady, 100);
+            }
+        }
+    </script>
+    <script type="module">
+        import { createApp, ref } from '/static/vue.esm-browser.js';
+
+        const app = createApp({
+            delimiters: ['[[', ']]'],
+            data() {
+                return {
+                    states: ['LANDING', 'EDITOR', 'SELECT_SIZE', 'CART', 'ORDERED'],
+                    state: 'LANDING',
+                    opencvReady: false,
+                    usingCamera: false,
+                    videoCap: undefined,
+                    filename: undefined,
+                    thresholds: [],
+                    thresholdDefaults: {
+                        mask: undefined, //if defined, restrict the area the threshold is applied
+                        saturation: 120,
+                        value: 50,
+                        autoBw: true,
+                        bw: 128,
+                        redHueMin: 170,
+                        redHueMax: 10,
+                    },
+                    widthmm: 62,
+                    heightmm: 0,
+                    heightmm90: 0,
+                    selectSizeChecked: true,
+                    selectSizeChecked90: false,
+                    cart: [],
+                    editingCartIdx: undefined,
+                    drawRadius: 10,
+                    inMaskPrevX: undefined,
+                    inMaskPrevY: undefined,
+                    phoneNumberInput: '',
+                    phoneNumberValidated: '',
+                    address: '',
+                }
+            },
+            methods: {
+                copy(obj) {
+                    return JSON.parse(JSON.stringify(obj));
+                },
+                async loadDataURL(dataURL) {
+                    return new Promise((resolve, reject) => {
+                        const img = new Image();
+                        img.onload = () => {
+                            resolve(img);
+                        }
+                        img.src = dataURL;
+                    });
+                },
+                async editImage(dataURL, saturation = undefined, value = undefined, bw = undefined) {
+                    const img = await this.loadDataURL(dataURL);
+                    // img.onload = () => {
+                    const canvasIn = document.querySelector('#canvasEditorIn');
+                    const canvasInMask = document.querySelector('#canvasEditorInMask');
+                    const canvasInMaskHover = document.querySelector('#canvasEditorInMaskHover');
+                    var ctx = canvasIn.getContext('2d');
+                    canvasIn.width = img.width;
+                    canvasIn.height = img.height;
+                    canvasInMask.width = img.width;
+                    canvasInMask.height = img.height;
+                    canvasInMaskHover.width = img.width;
+                    canvasInMaskHover.height = img.height;
+                    ctx.drawImage(img, 0, 0);
+                    this.state = 'EDITOR';
+                    this.thresholds = [this.copy(this.thresholdDefaults)];
+                    if (saturation !== undefined) {
+                        this.thresholds[0].saturation = saturation;
+                    }
+                    if (value !== undefined) {
+                        this.thresholds[0].value = value;
+                    }
+                    if (bw !== undefined) {
+                        this.thresholds[0].autoBw = false;
+                        this.thresholds[0].bw = bw;
+                    }
+                    this.processImage();
+                    // };
+                    // img.src = dataURL;
+                },
+                pickFile() {
+                    const input = document.createElement('input');
+                    input.type = 'file';
+                    input.onchange = e => {
+                        var file = e.target.files[0];
+                        // console.log(file.name, file.size, file.type);
+                        this.filename = file.name;
+
+                        // setting up the reader
+                        var reader = new FileReader();
+                        reader.readAsDataURL(file);
+                        reader.onload = e => {
+                            this.editImage(reader.result);
+                        }
+                    }
+                    input.click();
+                },
+                async useCamera() {
+                    this.filename = 'camera';
+                    const stream = await navigator.mediaDevices.getUserMedia({
+                        video: {
+                            width: { ideal: 4096 },
+                            height: { ideal: 2160 }
+                        },
+                        audio: false
+                    });
+                    const { width, height } = stream.getTracks()[0].getSettings();
+                    // console.log(width, height);
+
+                    this.usingCamera = true;
+                    this.state = 'EDITOR';
+
+                    const video = document.getElementById('videoEditorIn');
+                    video.width = width;
+                    video.height = height;
+
+                    video.srcObject = stream;
+                    video.play();
+
+                    this.videoCap = new cv.VideoCapture(video);
+                    // console.log(video.width, video.height);
+
+                    setTimeout(this.processVideo, 0);
+                },
+                processVideo() {
+                    const video = document.getElementById('videoEditorIn');
+                    const videoFrame = new cv.Mat(video.height, video.width, cv.CV_8UC4);
+                    this.videoCap.read(videoFrame);
+                    cv.imshow('canvasEditorIn', videoFrame);
+                    videoFrame.delete();
+
+                    if (this.usingCamera) {
+                        this.processImage(480);
+                        setTimeout(this.processVideo, 0);
+                    } else {
+                        this.processImage();
+                        this.videoCap = undefined;
+                    }
+                },
+                takeSnapshot() {
+                    this.usingCamera = false;
+                },
+                removeExtension(filename) {
+                    return filename.substring(0, filename.lastIndexOf('.')) || filename;
+                },
+                downloadOutput() {
+                    const link = document.createElement('a');
+                    link.download = this.removeExtension(this.filename) + '_rbw.png';
+                    link.href = document.querySelector('#canvasEditorOut').toDataURL();
+                    link.click();
+                },
+                printOutput() {
+                    const source = document.querySelector('#canvasEditorOut').toDataURL();
+                    const pwa = window.open('about:blank', '_new');
+                    pwa.document.open();
+                    pwa.document.write(
+                        "<html><head><scri" + "pt>function step1(){\n" +
+                        "setTimeout('step2()', 10);}\n" +
+                        "function step2(){window.print();window.close()}\n" +
+                        "</scri" + "pt></head><body onload='step1()'>\n" +
+                        "<img src='" + source + "' /></body></html>"
+                    );
+                    pwa.document.close();
+                },
+                // processImage() {
+                // let mat = cv.imread('canvasEditorIn');
+                // cv.imshow('canvasEditorOut', mat);
+                // mat.delete();
+                // },
+                processImage(largestDim = undefined) {
+                    // console.log("Reading the image...");
+                    let src = cv.imread('canvasEditorIn');
+                    if (largestDim !== undefined) {
+                        let size;
+                        if (src.cols > src.rows) {
+                            size = new cv.Size(largestDim, largestDim * src.rows / src.cols);
+                        } else {
+                            size = new cv.Size(largestDim * src.cols / src.rows, largestDim);
+                        }
+                        cv.resize(src, src, size, 0, 0, cv.INTER_AREA);
+                    }
+
+                    // console.log("Converting to HSV...");
+                    let hsv = new cv.Mat();
+                    cv.cvtColor(src, hsv, cv.COLOR_RGB2HSV);
+
+                    let saturationMask = new cv.Mat();
+
+                    // console.log("Isolating the red color in the original image...");
+                    if (this.thresholds[0].redHueMin > this.thresholds[0].redHueMax) { //if it wraps around hue 0 (red) on the 180 degree color wheel
+                        let low1 = new cv.Mat(hsv.rows, hsv.cols, hsv.type(), [0, this.thresholds[0].saturation, this.thresholds[0].value, 0]);
+                        let high1 = new cv.Mat(hsv.rows, hsv.cols, hsv.type(), [this.thresholds[0].redHueMax, 255, 255, 255]);
+                        let low2 = new cv.Mat(hsv.rows, hsv.cols, hsv.type(), [this.thresholds[0].redHueMin, this.thresholds[0].saturation, this.thresholds[0].value, 0]);
+                        let high2 = new cv.Mat(hsv.rows, hsv.cols, hsv.type(), [180, 255, 255, 255]);
+
+                        let mask1 = new cv.Mat();
+                        let mask2 = new cv.Mat();
+                        cv.inRange(hsv, low1, high1, mask1);
+                        cv.inRange(hsv, low2, high2, mask2);
+                        cv.bitwise_or(mask1, mask2, saturationMask);
+                        mask1.delete(); mask2.delete();
+                        low1.delete(); high1.delete(); low2.delete(); high2.delete();
+                    } else {
+                        let low = new cv.Mat(hsv.rows, hsv.cols, hsv.type(), [this.thresholds[0].redHueMin, this.thresholds[0].saturation, this.thresholds[0].value, 0]);
+                        let high = new cv.Mat(hsv.rows, hsv.cols, hsv.type(), [this.thresholds[0].redHueMax, 255, 255, 255]);
+                        cv.inRange(hsv, low, high, saturationMask);
+                        low.delete(); high.delete();
+                    }
+
+                    // console.log("Setting the target color to pure red...");
+                    let targetRed = new cv.Mat.zeros(src.rows, src.cols, cv.CV_8UC3);
+                    targetRed.setTo(new cv.Scalar(255, 0, 0));
+
+                    // console.log("Converting to grayscale...");
+                    let gray = new cv.Mat();
+                    cv.cvtColor(src, gray, cv.COLOR_BGR2GRAY);
+
+                    let bw = new cv.Mat();
+                    if (this.thresholds[0].autoBw) {
+                        // console.log("Applying Otsu's thresholding...");
+                        cv.threshold(gray, bw, 0, 255, cv.THRESH_BINARY + cv.THRESH_OTSU);
+                    } else {
+                        cv.threshold(gray, bw, this.thresholds[0].bw, 255, cv.THRESH_BINARY);
+                    }
+
+                    // console.log("Converting black and white image to BGR...");
+                    let bwBgr = new cv.Mat();
+                    cv.cvtColor(bw, bwBgr, cv.COLOR_GRAY2BGR);
+
+                    // console.log("Creating mask of non-target areas...");
+                    let nonTarget = new cv.Mat();
+                    cv.bitwise_not(saturationMask, nonTarget);
+
+                    // console.log("Combining black and white with non-target mask...");
+                    let bwMasked = new cv.Mat();
+                    cv.bitwise_and(bwBgr, bwBgr, bwMasked, nonTarget);
+
+                    // console.log("Combining red with target mask...");
+                    let redMasked = new cv.Mat();
+                    cv.bitwise_and(targetRed, targetRed, redMasked, saturationMask);
+
+                    // console.log("Combining final image...");
+                    let finalImage = new cv.Mat();
+                    cv.bitwise_or(bwMasked, redMasked, finalImage);
+
+                    // console.log("Displaying the result...");
+                    cv.imshow('canvasEditorOut', finalImage);
+
+                    // Cleanup
+                    src.delete(); hsv.delete(); saturationMask.delete(); targetRed.delete();
+                    gray.delete(); bw.delete(); bwBgr.delete(); nonTarget.delete();
+                    bwMasked.delete(); redMasked.delete(); finalImage.delete();
+                },
+
+                quitEditor() {
+                    if ((this.state === 'EDITOR' || this.state === 'SELECT_SIZE') && confirm('are you sure you want to leave? changes will not be saved.')) {
+                        this.state = 'LANDING';
+                    }
+                },
+                selectSize() {
+                    if (this.state === 'EDITOR') {
+                        let out = cv.imread('canvasEditorOut');
+                        let out90 = new cv.Mat();
+                        if (out.cols > out.rows) {
+                            out.copyTo(out90);
+                            cv.rotate(out90, out, cv.ROTATE_90_CLOCKWISE);
+                        } else {
+                            cv.rotate(out, out90, cv.ROTATE_90_CLOCKWISE);
+                        }
+                        cv.imshow('canvasSelectSize', out);
+                        cv.imshow('canvasSelectSize90', out90);
+                        this.heightmm = this.widthmm * out.rows / out.cols;
+                        this.heightmm90 = this.widthmm * out90.rows / out90.cols;
+                        out.delete();
+                        out90.delete();
+                        this.state = 'SELECT_SIZE';
+                    }
+                },
+                editorAddToCart() {
+                    if (this.state === 'EDITOR') {
+                        this.selectSize();
+                        if (this.editingCartIdx !== undefined) {
+                            this.selectSizeAddToCart();
+                        }
+                    }
+                },
+                selectSizeAddToCart() {
+                    if (this.state === 'SELECT_SIZE') {
+                        const item = {
+                            imgOriginal: document.querySelector('#canvasEditorIn').toDataURL(),
+                            img: document.querySelector('#canvasSelectSize').toDataURL(),
+                            imgQty: this.selectSizeChecked ? 1 : 0,
+                            img90: document.querySelector('#canvasSelectSize90').toDataURL(),
+                            img90Qty: this.selectSizeChecked90 ? 1 : 0,
+
+                            widthmm: this.widthmm,
+                            heightmm: this.heightmm,
+                            heightmm90: this.heightmm90,
+
+                            thresholds: this.thresholds,
+                        };
+                        if (this.editingCartIdx === undefined) {
+                            this.cart.push(item);
+                        } else {
+                            item.imgQty = this.cart[this.editingCartIdx].imgQty;
+                            item.img90Qty = this.cart[this.editingCartIdx].img90Qty;
+                            this.cart[this.editingCartIdx] = item;
+                        }
+                        this.state = 'CART';
+                        this.editingCartIdx = undefined;
+                    }
+                },
+                removeFromCart(i) {
+                    if (confirm('are you sure you want to remove this item from the cart?')) {
+                        this.cart.splice(i, 1);
+                    }
+                },
+                editCartItem(i) {
+                    this.editingCartIdx = i;
+                    const item = this.cart[i];
+                    this.thresholds = item.thresholds;
+                    this.editImage(item.imgOriginal);
+                },
+                addMoreStickers() {
+                    if (this.state === 'CART') {
+                        this.state = 'LANDING';
+                    }
+                },
+                viewCart() {
+                    if (this.state === 'LANDING') {
+                        this.state = 'CART';
+                    }
+                },
+                drawCircle(centerX, centerY, radius, canvasId) {
+                    const canvas = document.querySelector(canvasId);
+                    const context = canvas.getContext('2d');
+                    radius *= canvas.width / canvas.offsetWidth;
+                    centerX *= canvas.width / canvas.offsetWidth;
+                    centerY *= canvas.height / canvas.offsetHeight;
+                    context.beginPath();
+                    context.arc(centerX, centerY, radius, 0, 2 * Math.PI, false);
+                    context.fillStyle = '#0f0';
+                    context.fill();
+                },
+                maskDown(e) {
+                    return; //TODO
+                    this.drawCircle(e.layerX, e.layerY, this.drawRadius, '#canvasEditorInMask');
+                    this.inMaskPrevX = e.layerX;
+                    this.inMaskPrevY = e.layerY;
+                    if (this.thresholds.length < 2) {
+                        this.thresholds.push(this.copy(this.thresholdDefaults));
+                    }
+                },
+                maskMove(e) {
+                    return; //TODO
+                    this.clearHover();
+                    this.drawCircle(e.layerX, e.layerY, this.drawRadius, '#canvasEditorInMaskHover');
+
+                    if (e.buttons === 1) {
+                        const dx = e.layerX - this.inMaskPrevX;
+                        const dy = e.layerY - this.inMaskPrevY;
+
+                        for (let i = 0; i < 1; i += 0.01) {
+                            this.drawCircle(this.inMaskPrevX + dx * i, this.inMaskPrevY + dy * i, this.drawRadius, '#canvasEditorInMask');
+                        }
+                        this.maskDown(e);
+                    }
+                },
+                maskUp() {
+                    this.inMaskPrevX = undefined;
+                    this.inMaskPrevY = undefined;
+                },
+                maskLeave() {
+                    this.maskUp();
+                    this.clearHover();
+                },
+                clearHover() {
+                    const canvas = document.querySelector('#canvasEditorInMaskHover');
+                    const context = canvas.getContext('2d');
+                    context.clearRect(0, 0, canvas.width, canvas.height);
+                },
+                checkPhoneNumber() {
+                    fetch('/check-phone-number?num=' + encodeURIComponent(this.phoneNumberInput))
+                    .then(res => res.text())
+                    .then(text => {
+                        this.phoneNumberValidated = text;
+                        this.phoneNumberInput = text;
+                        if (text === '') alert('phone number not recognized. re-enter and try again');
+                    });
+                },
+                fetch_post(url, data) {
+                    return fetch(url, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify(data)
+                    });
+                },
+                order() {
+                    this.fetch_post('/order', {
+                        phoneNumber: this.phoneNumberValidated,
+                        address: this.address,
+                        cart: this.cart,
+                    })
+                    .then(res => res.text())
+                    .then(text => {
+                        if (text === 'ok') {
+                            this.state = 'ORDERED';
+                        } else {
+                            alert(text);
+                        }
+                    });
+                },
+            },
+            watch: {
+                // saturationThresh: function (val) {
+                //     this.processImage();
+                // },
+                // valueThresh: function (val) {
+                //     this.processImage();
+                // },
+                // autoBwThresh: function (val) {
+                //     this.processImage();
+                // },
+                // bwThresh: function (val) {
+                //     this.processImage();
+                // },
+                // redHueMin: function (val) {
+                //     this.processImage();
+                // },
+                // redHueMax: function (val) {
+                //     this.processImage();
+                // },
+            },
+            mounted() {
+                window.dispatchEvent(new CustomEvent('vueMounted'));
+                window.addEventListener('opencvReady', e => {
+                    // console.log('opencvReady', e);
+                    this.opencvReady = true;
+                });
+                this.thresholds = [this.copy(this.thresholdDefaults)];
+            },
+        });
+
+        app.component('dimensions', {
+            delimiters: ['[[', ']]'],
+            props: ['width', 'height'],
+            setup(props) {
+                const mmToIn = (mm) => {
+                    return mm / 25.4;
+                };
+                const distDisp = (mm) => {
+                    mm = Number(mm);
+                    return `${mm.toFixed(1)}mm (${mmToIn(mm).toFixed(2)}")`
+                };
+                return { distDisp, props };
+            },
+            template: `
+<div class="checkered">
+    <table>
+        <tbody>
+            <tr>
+                <td></td>
+                <td class="border-top-1">[[ distDisp(props.width) ]]</td>
+            </tr>
+            <tr>
+                <td class="border-left-1">
+                    <div class="writing-vertical">[[ distDisp(props.height) ]]</div>
+                </td>
+                <td><slot></slot></td>
+            </tr>
+        </tbody>
+    </table>
+</div>`
+        });
+
+        app.mount('#app');
+    </script>
+</body>
+
+</html>

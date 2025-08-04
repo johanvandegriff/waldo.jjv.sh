@@ -1,0 +1,3 @@
+flask
+xmpppy==0.7.1
+phonenumbers

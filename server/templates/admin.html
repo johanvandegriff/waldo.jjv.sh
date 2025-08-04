@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="description" content="TODO">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" type="text/css" href="/static/style.css">
+    <title>waldo.jjv.sh</title>
+</head>
+
+<body>
+    <div class="main" id="app">
+        <h1 class="waldo">
+            waldo<span class="r">.</span>jjv<span class="r">.</span>sh
+        </h1>
+        <h2>admin page</h2>
+        <img style="max-height: 25vh;" src="/static/waldo_wave_rbw.png" />
+    </div>
+
+    <script type="module">
+        import { createApp } from '/static/vue.esm-browser.js';
+
+        createApp({
+            delimiters: ['[[', ']]'],
+            data() {
+                return {
+                }
+            },
+            methods: {
+            },
+            mounted() {
+            },
+        }).mount('#app');
+
+    </script>
+</body>
+
+</html>
