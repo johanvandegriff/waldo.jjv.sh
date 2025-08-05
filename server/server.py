@@ -116,7 +116,8 @@ def order_endpoint():
     num_stickers = get_num_stickers(data)
     data['status'] = 'PLACED'
     set_order(order_id, data)
-    send_sms(secrets['admin_phone_number'], f'order of {num_stickers} stickers placed for {phone_number} at address: {sanitize_sms(address)}')
+    if secrets.get('send_admin_sms_on_order', False):
+        send_sms(secrets['admin_phone_number'], f'order of {num_stickers} stickers placed for {phone_number} at address: {sanitize_sms(address)}')
     return 'ok'
 
 
