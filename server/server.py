@@ -3,6 +3,7 @@ import xmpp
 import phonenumbers
 import json
 import os
+import shutil
 import base64
 
 ORDER_STATUSES = [
@@ -70,6 +71,7 @@ def set_order(order_id, order):
         json.dump(order, f, indent=2)
 
 def get_order(order_id):
+    order_id = order_id.replace('..', '').replace('/', '')
     with open(f'{ORDERS_DIR}/{order_id}/info.json', 'r') as f:
         info = json.load(f)
     info['id'] = order_id
@@ -139,6 +141,15 @@ def get_queue_data_endpoint():
     q = get_queue()
     return json.dumps(q)
 
+@app.route('/get-order', methods=['POST'])
+def get_order_endpoint():
+    data = request.get_json()
+    if not data or data.get("password") != secrets['admin_pass']:
+        return 'unauthorized', 401
+    order_id = data['order_id']
+    order = get_order(order_id)
+    return json.dumps(order)
+
 @app.route('/mark-printed', methods=['POST'])
 def mark_printed():
     data = request.get_json()
@@ -163,24 +174,21 @@ def mark_given():
     set_order(order_id, order)
     return 'ok'
 
-# @app.route('/get-order', methods=['POST'])
-# def get_order_endpoint():
-#     data = request.get_json()
-#     if not data or data.get("password") != secrets['admin_pass']:
-#         return 'unauthorized', 401
-#     data['order_id']
+@app.route('/delete-order', methods=['POST'])
+def delete_order():
+    data = request.get_json()
+    if not data or data.get("password") != secrets['admin_pass']:
+        return 'unauthorized', 401
+    order_id = data['order_id']
+    order_id = int(order_id)
+    order_id = str(order_id).zfill(8)
+    order_id = order_id.replace('..', '').replace('/', '')
+    shutil.rmtree(f'{ORDERS_DIR}/{order_id}')
+    return 'ok'
 
 # @app.route('/admin')
 # def admin():
 #     return render_template('admin.html')
-#
-# @app.route('/images-list', methods=['POST'])
-# def images_list_tmp():
-#     data = request.get_json()
-#     if not data or data.get("password") != secrets['admin_pass']:
-#         return 'unauthorized', 401
-#
-#     return '{"images": ["http://localhost:8080/static/IMG_20250606_171029_edit_waldo.jjv.sh_rbw.png"]}'
 
 HOST = '0.0.0.0'
 PORT = int(os.environ.get('PORT', '8080'))
