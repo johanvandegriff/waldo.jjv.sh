@@ -268,7 +268,7 @@
                     <p :style="{'color': phoneNumberValidated === '' ? 'gray' : ''}">Name and (optionally) info about where you generally hang out in the con:</p>
                     <textarea v-model="address" :disabled="phoneNumberValidated === ''"></textarea><br/>
                     <p>For now, stickers are free but I'll accept tips</p>
-                    <button @click="order" :disabled="phoneNumberValidated === '' || address === ''">place order</button>
+                    <button @click="order" :disabled="phoneNumberValidated === '' || address === '' || isSubmitting">place order</button><span v-if="isSubmitting">submitting...</span>
                     <br/><br/>
                 </div>
             </div>
@@ -336,6 +336,7 @@
                     phoneNumberInput: '',
                     phoneNumberValidated: '',
                     address: '',
+                    isSubmitting: false,
                 }
             },
             methods: {
@@ -610,6 +611,7 @@
                             this.cart[this.editingCartIdx] = item;
                         }
                         this.state = 'CART';
+                        this.isSubmitting = false;
                         this.editingCartIdx = undefined;
                     }
                 },
@@ -701,6 +703,7 @@
                     });
                 },
                 order() {
+                    this.isSubmitting = true;
                     this.fetch_post('/order', {
                         phoneNumber: this.phoneNumberValidated,
                         address: this.address,
@@ -708,6 +711,7 @@
                     })
                     .then(res => res.text())
                     .then(text => {
+                        this.isSubmitting = false;
                         if (text === 'ok') {
                             this.state = 'ORDERED';
                         } else {

@@ -107,9 +107,9 @@ def order_endpoint():
         return 'invalid phone number'
     address = data['address']
     queue = get_queue()
-    #check if this phone number has an order in queue already
-    # with open('tmp.json', 'w') as f:
-    #     json.dump(data, f, indent=2)
+    phone_numbers = [item['phoneNumber'] for item in queue]
+    if phone_number in phone_numbers: #check if this phone number has an order in queue already
+        return 'you already have an order in the queue'
     if len(queue) >= secrets['queue_limit']:
         return 'the order queue is full, try again later'
     order_id = new_order_id()
