@@ -263,11 +263,13 @@
                 <h2>checkout</h2>
                 <div style="text-align: left">
                     <br/>
-                    <p>Enter your contact info and I'll get in touch to give you the stickers:</p>
+                    <p>Enter your contact info:</p>
                     <p>Phone #: <input type="text" v-model="phoneNumberInput" @keydown="phoneNumberValidated = ''"> <button @click="checkPhoneNumber">next</button></p>
-                    <p :style="{'color': phoneNumberValidated === '' ? 'gray' : ''}">Name and (optionally) info about where you generally hang out in the con:</p>
-                    <textarea v-model="address" :disabled="phoneNumberValidated === ''"></textarea><br/>
-                    <p>For now, stickers are free but I'll accept tips</p>
+                    <p :style="{'color': phoneNumberValidated === '' ? 'gray' : ''}">Name and address to mail the stickers:</p>
+                    <textarea v-model="address" :disabled="phoneNumberValidated === ''" rows="4" placeholder="Jane Doe
+123 Road St.
+City, ZZ 12345"></textarea><br/>
+                    <p>I'll send you a text once I put the envelope in the mail</p>
                     <button @click="order" :disabled="phoneNumberValidated === '' || address === '' || isSubmitting">place order</button><span v-if="isSubmitting">submitting...</span>
                     <br/><br/>
                 </div>
