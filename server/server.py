@@ -150,6 +150,11 @@ def get_order_endpoint():
     order = get_order(order_id)
     return json.dumps(order)
 
+def send_status_sms(phone_number, secrets, message_name):
+    message = secrets.get(message_name, None) #e.g. secrets.get('printed_message', None)
+    if message is not None:
+        send_sms(phone_number, message)
+
 @app.route('/mark-printed', methods=['POST'])
 def mark_printed():
     data = request.get_json()
@@ -157,9 +162,8 @@ def mark_printed():
         return 'unauthorized', 401
     order_id = data['order_id']
     order = get_order(order_id)
-    phone_number = order['phoneNumber']
     order['status'] = 'PRINTED'
-    send_sms(phone_number, secrets['printed_message'])
+    send_status_sms(order['phoneNumber'], secrets, 'printed_message')
     set_order(order_id, order)
     return 'ok'
 
@@ -171,6 +175,7 @@ def mark_given():
     order_id = data['order_id']
     order = get_order(order_id)
     order['status'] = 'GIVEN'
+    send_status_sms(order['phoneNumber'], secrets, 'given_message')
     set_order(order_id, order)
     return 'ok'
 
