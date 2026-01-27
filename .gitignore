@@ -1,3 +1,6 @@
 __pycache__
 .venv
 secrets.json
+
+client/orders
+client/all-orders
