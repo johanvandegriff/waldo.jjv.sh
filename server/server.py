@@ -1,5 +1,6 @@
 from flask import Flask, render_template, send_file, jsonify, abort, request #, Response, url_for
-import xmpp
+import asyncio
+from slixmpp import ClientXMPP
 import phonenumbers
 import json
 import os
@@ -32,21 +33,41 @@ def standardize_phone_number(number):
     # convert phone number to +12345678900 format
     return phonenumbers.format_number(phonenumbers.parse(number, 'US'), phonenumbers.PhoneNumberFormat.E164)
 
+class SMSBot(ClientXMPP):
+    def __init__(self, jid, password, to, message):
+        super().__init__(jid, password)
+        self.to = to
+        self.message = message
+
+        self.add_event_handler("session_start", self.start)
+
+    async def start(self, event):
+        self.send_presence()
+        await self.get_roster()
+
+        self.send_message(mto=self.to, mbody=self.message, mtype='chat')
+        self.disconnect()
+
 #may throw a variety of exceptions (phone # format, failed to send sms, etc.)
 def send_sms(number, message):
     number = standardize_phone_number(number)
     print('send_sms', number, message)
 
-    jabberid = secrets['xmpp_user'] #"user@chatterboxtown.us"
+    jabberid = secrets['xmpp_user'] #"user@server.com"
     password = secrets['xmpp_pass']
     receiver = f'{number}@cheogram.com' #"+12345678900@cheogram.com"
 
-    jid = xmpp.protocol.JID(jabberid)
-    connection = xmpp.Client(server=jid.getDomain()) #, debug=debug)
-    connection.connect()
-    connection.auth(user=jid.getNode(), password=password, resource=jid.getResource())
-    connection.send(xmpp.protocol.Message(to=receiver, body=message))
+    async def _run():
+        xmpp = SMSBot(
+            jabberid,
+            password,
+            receiver,
+            message
+        )
+        xmpp.connect()
+        await xmpp.disconnected
 
+    asyncio.run(_run())
 
 app = Flask(__name__)
 
